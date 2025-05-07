@@ -1,0 +1,22 @@
+# Virtual Environment
+venv/
+__pycache__/
+
+# Environment variables
+.env
+
+# Python bytecode files
+*.pyc
+
+# Temporary files created by the application
+temp_*.*
+
+# OS-specific files (optional, but good practice)
+.DS_Store
+Thumbs.db
+
+# IDE / Editor specific files (optional)
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace 

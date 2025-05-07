@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+openai==1.3.5
+requests
+torch
+torchaudio
+packaging
+huggingface_hub==0.23.2
+openai-whisper
+python-dotenv
