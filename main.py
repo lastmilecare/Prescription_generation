@@ -6,29 +6,22 @@ import os
 import uuid
 from urllib.parse import urlparse
 from dotenv import load_dotenv
-import torch
 import subprocess
-import whisper
 import logging
 import json
 from fastapi.concurrency import run_in_threadpool
+import openai
 
 # Load environment variables
 load_dotenv()
 
-WHISPER_MODEL_NAME = os.getenv("WHISPER_MODEL_NAME", "medium")
+WHISPER_MODEL_NAME = os.getenv("WHISPER_MODEL_NAME", "whisper-1")
 OPENAI_MODEL_NAME = os.getenv("OPENAI_MODEL_NAME", "gpt-4o-mini")
 
 app = FastAPI()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Load Whisper
-logger.info(f"--- Loading Whisper model: {WHISPER_MODEL_NAME}")
-device = "cuda" if torch.cuda.is_available() else "cpu"
-asr_model = whisper.load_model(WHISPER_MODEL_NAME, device=device)
-logger.info(f"--- Whisper model loaded on {device}")
 
 client = AsyncOpenAI()
 
@@ -112,13 +105,34 @@ async def transcribe_audio(request: AudioRequest):
         with open(raw_path, "wb") as f:
             f.write(response.content)
 
-        subprocess.run([
-            "ffmpeg", "-y", "-i", raw_path,
-            "-ac", "1", "-ar", "16000", wav_path
-        ], check=True)
+        def convert_to_wav():
+            try:
+                subprocess.run([
+                    "ffmpeg", "-y", "-i", raw_path,
+                    "-ac", "1", "-ar", "16000", wav_path
+                ], check=True, capture_output=True)
+            except subprocess.CalledProcessError as cpe_convert:
+                ffmpeg_stdout = cpe_convert.stdout.decode(errors='ignore') if cpe_convert.stdout else "No stdout"
+                ffmpeg_stderr = cpe_convert.stderr.decode(errors='ignore') if cpe_convert.stderr else "No stderr"
+                logger.error(f"FFmpeg conversion error: {cpe_convert}\nFFmpeg stdout: {ffmpeg_stdout}\nFFmpeg stderr: {ffmpeg_stderr}")
+                raise
+        
+        await run_in_threadpool(convert_to_wav)
 
-        result = asr_model.transcribe(wav_path, language="hi", fp16=torch.cuda.is_available())
-        transcript = result["text"]
+        # Transcribe using OpenAI Whisper API
+        with open(wav_path, "rb") as audio_file:
+            transcription_response = await client.audio.transcriptions.create(
+                model=WHISPER_MODEL_NAME,
+                file=audio_file,
+                language="hi",
+                response_format="json"
+            )
+        
+        # Assuming response_format="json", the transcript is in transcription_response.text
+        # If you chose "text", it would be transcription_response directly (as a string)
+        # For now, let's assume it's an object with a 'text' attribute like the previous model.
+        # You might need to adjust this based on the actual API response structure.
+        transcript = transcription_response.text # Adjust if necessary based on actual API response
         logger.info(f"Transcript: {transcript}")
 
         chat_response = await client.chat.completions.create(
@@ -155,8 +169,20 @@ async def transcribe_audio(request: AudioRequest):
 
     except HTTPException:
         raise
+    except openai.RateLimitError as e: # Specific handling for OpenAI rate limit/quota errors
+        logger.error(f"OpenAI API rate limit/quota error: {e}")
+        detail_message = str(e)  # Default fallback
+        if hasattr(e, 'response') and e.response:
+            try:
+                data = e.response.json()
+                if isinstance(data, dict) and 'error' in data and isinstance(data['error'], dict) and 'message' in data['error']:
+                    detail_message = data['error']['message']
+            except Exception:
+                # If .json() fails or structure is not as expected, stick with str(e)
+                pass
+        raise HTTPException(status_code=429, detail=f"OpenAI API request failed due to rate limits or insufficient quota: {detail_message}")
     except subprocess.CalledProcessError as cpe:
-        raise HTTPException(status_code=500, detail=f"FFmpeg error: {cpe}")
+        raise HTTPException(status_code=500, detail=f"FFmpeg processing error. Check logs for details.")
     except Exception as e:
         logger.exception("Unexpected error:")
         raise HTTPException(status_code=500, detail=str(e))
