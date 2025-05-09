@@ -76,7 +76,46 @@ Here are common Indian brand names to help guide recognition:
   "Zempred", "Zerodol", "Zifi", "Zincovit", "Zole F", "Zoryl", "Zyrtec"
 ]
 
-Respond with a single JSON object only.
+Respond with a single JSON object only.Follow the below format strictly:
+
+example JSON : 
+{
+    "structured_output": {
+        "chief_complaints": ["headache"],
+        "diagnose": ["high BP","cold"],
+        "lab": ["blood test"],
+        "instructions": [
+            "avoid watching TV",
+            "avoid using phone"
+        ],
+        "follow_up": "8 days",
+        "drug_allergies": "unknown",
+        "medications": [
+            {
+                "medicine_name": "I Care",
+                "dosage": "500 mg",
+                "frequency": "twice a day",
+                "duration": "8 days",
+                "instructions": "put two drops",
+                "medicine_type": "Eye Drops"
+            },
+            {
+                "medicine_name": "Crocin",
+                "dosage": "500 mg",
+                "frequency": "once a day",
+                "duration": "4 days",
+                "instructions": "after food",
+                "medicine_type": "Tablet"
+            }
+        ]
+    },
+    "token_usage": {
+        "prompt_tokens": 897,
+        "completion_tokens": 126,
+        "total_tokens": 1023
+    },
+    "estimated_cost_usd": 0.001541
+}
 """
 
 class AudioRequest(BaseModel):
