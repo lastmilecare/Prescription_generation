@@ -94,7 +94,7 @@ example JSON :
             {
                 "medicine_name": "I Care",
                 "dosage": "500 mg",
-                "frequency": "twice a day",
+                "frequency": ["morning","evening","night", "SOS", "STAT"],
                 "duration": "8 days",
                 "instructions": "put two drops",
                 "medicine_type": "Eye Drops"
@@ -102,7 +102,7 @@ example JSON :
             {
                 "medicine_name": "Crocin",
                 "dosage": "500 mg",
-                "frequency": "once a day",
+                "frequency": ["morning","evening","night", "SOS", "STAT"],
                 "duration": "4 days",
                 "instructions": "after food",
                 "medicine_type": "Tablet"
